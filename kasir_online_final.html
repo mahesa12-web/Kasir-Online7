@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kasir 7 — Modern</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#070707;
+      --panel:#0f0f0f;
+      --accent:#ffb703;
+      --muted:#bfbfbf;
+      --anim: 0.6s;
+    }
+    *{box-sizing:border-box}
+    body{ margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Arial; background:linear-gradient(180deg,#060606,#0b0b0b); color:#fff; -webkit-font-smoothing:antialiased; }
+    header{
+      position:sticky; top:0; z-index:50; display:flex; justify-content:flex-end; align-items:center;
+      padding:12px 20px; border-bottom:1px solid rgba(255,255,255,0.03); background:linear-gradient(90deg, rgba(0,0,0,0.2), rgba(0,0,0,0.15));
+    }
+    .header-center{ position:absolute; left:50%; transform:translateX(-50%); display:flex; gap:12px; align-items:center; pointer-events:none; }
+    .header-center img.logo{ width:56px; height:56px; border-radius:50%; object-fit:cover; box-shadow:0 6px 20px rgba(0,0,0,0.6); }
+    .header-center h1{ margin:0; color:var(--accent); font-weight:800; letter-spacing:1px; }
+    .nav-buttons{ display:flex; gap:10px; pointer-events:auto; }
+    .nav-buttons button{ background:transparent; color:#fff; border:1px solid rgba(255,255,255,0.05); padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700; }
+    main{ max-width:1100px; margin:20px auto; padding:20px; }
+
+    /* pages + animation */
+    .page{ transition: opacity var(--anim) ease, transform var(--anim) ease; will-change:opacity,transform; }
+    .hidden{ display:none !important; }
+    .fade-enter{ animation: fadeIn var(--anim) cubic-bezier(.2,.9,.2,1) forwards; }
+    .fade-leave{ animation: fadeOut var(--anim) cubic-bezier(.2,.9,.2,1) forwards; }
+    @keyframes fadeIn{ from{opacity:0; transform:scale(0.985);} to{opacity:1; transform:scale(1);} }
+    @keyframes fadeOut{ from{opacity:1; transform:scale(1);} to{opacity:0; transform:scale(0.985);} }
+
+    /* login */
+    .login-box{ width:360px; margin:40px auto; padding:28px; border-radius:14px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); box-shadow:0 12px 40px rgba(0,0,0,0.7); text-align:center;}
+    .login-box img{ width:96px; height:96px; border-radius:12px; object-fit:cover; display:block; margin:0 auto 10px; }
+    .login-box h2{ color:var(--accent); margin:6px 0 12px 0; }
+    .login-box input{ width:100%; padding:10px 12px; margin:8px 0; border-radius:10px; background:#0a0a0a; border:1px solid rgba(255,255,255,0.03); color:#fff; }
+    .login-box button{ width:100%; padding:10px; margin-top:10px; border-radius:10px; border:none; background:var(--accent); color:#111; font-weight:800; cursor:pointer; }
+
+    /* modal */
+    .modal-overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); z-index:600; opacity:0; pointer-events:none; transition:opacity var(--anim) ease; }
+    .modal-overlay.show{ opacity:1; pointer-events:auto; }
+    .modal{ width:420px; padding:16px; border-radius:12px; background:linear-gradient(180deg,#0b0b0b,#111); border:1px solid rgba(255,255,255,0.03); box-shadow:0 18px 60px rgba(0,0,0,0.7); color:#fff; }
+
+    /* kasir */
+    .menu{ display:grid; gap:16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top:14px; }
+    .card{ background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px; border-radius:12px; text-align:center; border:1px solid rgba(255,255,255,0.03); }
+    #cart{ margin-top:12px; padding:12px; border-radius:10px; background:#0b0b0b; border:1px solid rgba(255,255,255,0.03); }
+    #receipt{ display:none; margin-top:12px; }
+
+    /* dashboard */
+    #chartKasir{ width:100%; background:#fff; border-radius:10px; padding:8px; }
+    #laporanDashboard{ margin-top:12px; padding:12px; border-radius:10px; background:linear-gradient(180deg,#0b0b0b,#0e0e0e); color:var(--muted); max-height:260px; overflow:auto; border:1px solid rgba(255,255,255,0.03); }
+
+    footer{ text-align:center; color:var(--muted); padding:18px 8px; margin-top:20px; }
+
+    @media (max-width:720px){ .login-box{ width:92%; } main{ padding:12px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <!-- logo tetap ada -->
+      <img src="logo-w7.jpg.jpg" alt="Logo Warung No.7" class="logo" style="width:56px;height:56px;border-radius:50%;object-fit:cover;box-shadow:0 6px 20px rgba(0,0,0,0.6);">
+      <div style="font-weight:800;color:var(--accent);letter-spacing:1px;font-size:18px">Kasir 7 — Modern</div>
+    </div>
+    <div class="header-center" aria-hidden="true" style="display:none;">
+      <!-- kept for compatibility if needed -->
+    </div>
+    <div style="margin-left:auto" class="nav-buttons" role="navigation" aria-label="Navigasi">
+      <button id="btnKasir" onclick="showKasir()">Kasir</button>
+      <button id="btnDashboard" onclick="showDashboard()">Dashboard</button>
+      <button id="btnLogout" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- LOGIN -->
+    <div id="loginPage" class="page">
+      <div class="login-box" role="form" aria-labelledby="loginTitle">
+        <img src="logo-w7.jpg.jpg" alt="Logo Warung No.7" onerror="this.onerror=null;this.src='https://via.placeholder.com/96?text=Logo'">
+        <h2 id="loginTitle">Login Kasir</h2>
+        <input id="username" type="text" placeholder="Username" autocomplete="username" value="kasir">
+        <input id="password" type="password" placeholder="Password" autocomplete="current-password" value="1234">
+        <button onclick="login()">Masuk</button>
+        <div style="margin-top:8px; text-align:center;">
+          <button onclick="openUserModal()" style="background:transparent; color:#fff; border:1px solid rgba(255,255,255,0.06); padding:8px 12px; border-radius:8px;">Buat User Baru</button>
+        </div>
+        <p id="error" style="color:#ff7b7b; margin-top:8px;"></p>
+      </div>
+    </div>
+
+    <!-- MODAL USER -->
+    <div id="userModalOverlay" class="modal-overlay" aria-hidden="true">
+      <div id="modalDialog" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <h3 id="modalTitle" style="color:var(--accent); margin:0 0 8px 0;">Buat / Kelola User</h3>
+        <input id="modalUsername" placeholder="Username baru" autocomplete="off">
+        <input id="modalPassword" placeholder="Password baru" type="password" autocomplete="new-password">
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button onclick="modalCreateUser()" style="background:var(--accent); border:none; color:#111; padding:8px 12px; border-radius:8px;">Simpan</button>
+          <button onclick="closeUserModal()" style="background:#222; border:none; color:#fff; padding:8px 12px; border-radius:8px;">Tutup</button>
+        </div>
+        <div id="modalUserList" style="margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <!-- APP -->
+    <div id="appWrap" class="page hidden" role="application" aria-hidden="true">
+      <!-- KASIR -->
+      <section id="kasirSection" class="page">
+        <h2>Menu Makanan & Minuman</h2>
+        <input id="searchBox" type="text" placeholder="🔍 Cari menu..." oninput="searchMenu()" style="width:100%;padding:10px;border-radius:10px;background:#0b0b0b;border:1px solid rgba(255,255,255,0.03);color:#fff;">
+        <div id="menuList" class="menu" role="list"></div>
+
+        <h3 style="margin-top:20px;">Keranjang Belanja</h3>
+        <div id="cart"></div>
+        <p><strong>Total:</strong> Rp <span id="total">0</span></p>
+
+        <label style="display:block; margin-top:8px;">Pembayaran:
+          <select id="payment" style="padding:8px;border-radius:8px;background:#0b0b0b;color:#fff;border:1px solid rgba(255,255,255,0.03);">
+            <option value="tunai">Tunai</option>
+            <option value="qris">QRIS</option>
+            <option value="ewallet">E-Wallet</option>
+          </select>
+        </label>
+
+        <div style="margin-top:10px;">
+          <label>Bayar (Rp):</label>
+          <input id="bayar" type="number" oninput="hitungKembalian()" style="padding:8px;border-radius:8px;background:#0b0b0b;color:#fff;border:1px solid rgba(255,255,255,0.03);">
+          <p><strong>Kembalian:</strong> Rp <span id="kembalian">0</span></p>
+        </div>
+
+        <div style="margin-top:10px;">
+          <button onclick="checkout()" style="background:var(--accent);border:none;color:#111;padding:10px 14px;border-radius:10px;font-weight:800;cursor:pointer;">Bayar</button>
+        </div>
+
+        <div id="receipt" style="display:none;">
+          <img src="logo-w7.jpg.jpg" alt="Logo" style="width:80px;height:80px;border-radius:10px;display:block;margin:12px auto;" onerror="this.onerror=null;this.src='https://via.placeholder.com/80'">
+          <h3 style="text-align:center;color:var(--accent);margin:6px 0;">🧾 STRUK PEMBELIAN</h3>
+          <pre id="receiptText" style="white-space:pre-wrap;color:var(--muted);"></pre>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button onclick="printReceipt()" style="background:#222;border:none;color:#fff;padding:8px;border-radius:8px;">Cetak</button>
+            <button onclick="closeReceipt()" style="background:#333;border:none;color:#fff;padding:8px;border-radius:8px;">Tutup</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- DASHBOARD -->
+      <section id="dashboardSection" class="page hidden" aria-labelledby="dashTitle">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h2 id="dashTitle">📊 Dashboard Kasir</h2>
+          <div id="userProfileBtn" onclick="toggleUserProfile()" style="cursor:pointer;">👤 <span id="userProfileName">User</span></div>
+        </div>
+
+        <div id="userProfilePopup" style="display:none; position:absolute; right:20px; top:72px; width:260px; background:#0d0d0d; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.03);">
+          <p>Nama: <strong id="popupUsername"></strong></p>
+          <p>Role: <strong id="popupRole"></strong></p>
+          <hr style="border-color:#222;margin:8px 0;">
+          <input id="popupOldPass" type="password" placeholder="Password lama" style="width:100%;padding:8px;border-radius:8px;background:#0b0b0b;border:1px solid rgba(255,255,255,0.03);color:#fff;">
+          <input id="popupNewPass" type="password" placeholder="Password baru" style="width:100%;padding:8px;border-radius:8px;background:#0b0b0b;border:1px solid rgba(255,255,255,0.03);color:#fff;margin-top:8px;">
+          <button onclick="ubahPasswordDariPopup()" style="background:#00b894;border:none;color:#fff;padding:8px;border-radius:8px;margin-top:8px;width:100%;">Simpan</button>
+        </div>
+
+        <div style="margin:10px 0;">
+          <label style="color:var(--muted);"><strong>Pilih Tampilan:</strong></label>
+          <select id="filterType" onchange="renderDashboard()" style="padding:8px;border-radius:8px;background:#0b0b0b;color:#fff;border:1px solid rgba(255,255,255,0.03);">
+            <option value="harian">Harian</option>
+            <option value="bulanan" selected>Bulanan</option>
+            <option value="tahunan">Tahunan</option>
+          </select>
+          <button onclick="resetDashboard()" style="margin-left:8px;background:#222;color:#fff;padding:8px;border-radius:8px;border:none;">Reset</button>
+        </div>
+
+        <canvas id="chartKasir" height="120"></canvas>
+        <h3 style="margin-top:14px;">Laporan Transaksi</h3>
+        <div id="laporanDashboard"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>© 2025 Kasir 7 - Sistem Kasir Modern</footer>
+
+  <script>
+    /* ---------- initial user ---------- */
+    (function ensureDefaultUser(){
+      const users = JSON.parse(localStorage.getItem('users')||'[]');
+      if(!users.some(u=>u.username==='kasir')){ users.unshift({username:'kasir', password:'1234', role:'admin'}); localStorage.setItem('users', JSON.stringify(users)); }
+    })();
+
+    /* ---------- menu (tanpa gambar): 10 makanan + 10 minuman ---------- */
+    const menu = [
+      // Makanan (10)
+      { nama: "Nasi Goreng Spesial", harga: 25000, kategori: 'makanan' },
+      { nama: "Ayam Geprek", harga: 18000, kategori: 'makanan' },
+      { nama: "Mie Ayam Bakso", harga: 17000, kategori: 'makanan' },
+      { nama: "Soto Ayam Lamongan", harga: 15000, kategori: 'makanan' },
+      { nama: "Pecel Lele", harga: 16000, kategori: 'makanan' },
+      { nama: "Bakso Urat", harga: 15000, kategori: 'makanan' },
+      { nama: "Nasi Uduk Komplit", harga: 20000, kategori: 'makanan' },
+      { nama: "Lontong Sayur", harga: 12000, kategori: 'makanan' },
+      { nama: "Rendang Padang", harga: 25000, kategori: 'makanan' },
+      { nama: "Tahu Tempe Penyet", harga: 10000, kategori: 'makanan' },
+
+      // Minuman (10)
+      { nama: "Es Teh Manis", harga: 5000, kategori: 'minuman' },
+      { nama: "Es Jeruk Segar", harga: 7000, kategori: 'minuman' },
+      { nama: "Kopi Hitam", harga: 8000, kategori: 'minuman' },
+      { nama: "Cappuccino Dingin", harga: 12000, kategori: 'minuman' },
+      { nama: "Jus Alpukat", harga: 10000, kategori: 'minuman' },
+      { nama: "Jus Mangga", harga: 9000, kategori: 'minuman' },
+      { nama: "Teh Tarik", harga: 8000, kategori: 'minuman' },
+      { nama: "Lemon Tea", harga: 7000, kategori: 'minuman' },
+      { nama: "Air Mineral", harga: 4000, kategori: 'minuman' },
+      { nama: "Es Coklat", harga: 10000, kategori: 'minuman' }
+    ];
+
+    let cart = [], chart = null;
+    const ANIM_MS = 600;
+
+    function getLoggedInUser(){ try{ const raw = localStorage.getItem('login'); return raw ? JSON.parse(raw) : null; } catch(e){ return null; } }
+    function setLoginSession(u){ localStorage.setItem('login', JSON.stringify(u)); }
+
+    /* ---------- small DOM helpers ---------- */
+    function addAnimationClass(el, cls){ if(!el) return; el.classList.remove('fade-enter','fade-leave'); void el.offsetWidth; el.classList.add(cls); }
+    function transitionShow(fromEl, toEl){
+      if(fromEl && !fromEl.classList.contains('hidden')){ addAnimationClass(fromEl, 'fade-leave'); setTimeout(()=>{ fromEl.classList.add('hidden'); fromEl.classList.remove('fade-leave'); }, ANIM_MS); }
+      if(toEl){ toEl.classList.remove('hidden'); addAnimationClass(toEl, 'fade-enter'); setTimeout(()=> toEl.classList.remove('fade-enter'), ANIM_MS); }
+    }
+
+    /* ---------- AUTH ---------- */
+    function login(){
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value.trim();
+      const users = JSON.parse(localStorage.getItem('users')||'[]');
+      const user = users.find(x=>x.username===u && x.password===p);
+      const err = document.getElementById('error');
+      if(user){
+        setLoginSession(user);
+        const loginPage = document.getElementById('loginPage');
+        const appWrap = document.getElementById('appWrap');
+        transitionShow(loginPage, appWrap);
+        appWrap.classList.remove('hidden'); document.getElementById('dashboardSection').classList.add('hidden');
+        document.getElementById('kasirSection').classList.remove('hidden');
+        tampilMenu(); renderDashboard(); updateProfileUI(); closeUserModal();
+      } else { err.innerText = 'Username / Password salah!'; setTimeout(()=>err.innerText='',2500); }
+    }
+
+    /* ---------- user modal ---------- */
+    const overlay = document.getElementById('userModalOverlay'), modalDialog = document.getElementById('modalDialog');
+    function openUserModal(){ refreshModalUserList(); overlay.classList.add('show'); overlay.setAttribute('aria-hidden','false'); setTimeout(()=>document.getElementById('modalUsername').focus(),120); }
+    function closeUserModal(){ overlay.classList.remove('show'); overlay.setAttribute('aria-hidden','true'); document.getElementById('modalUsername').value=''; document.getElementById('modalPassword').value=''; }
+    function modalCreateUser(){
+      const u = document.getElementById('modalUsername').value.trim(), p = document.getElementById('modalPassword').value.trim();
+      if(!u||!p){ alert('Isi username dan password!'); return; }
+      let users = JSON.parse(localStorage.getItem('users')||'[]');
+      if(users.find(x=>x.username===u)){ alert('Username sudah terdaftar!'); return; }
+      users.push({username:u,password:p,role:'kasir'}); localStorage.setItem('users', JSON.stringify(users)); document.getElementById('modalUsername').value=''; document.getElementById('modalPassword').value=''; refreshModalUserList(); alert('User berhasil dibuat!');
+    }
+    function refreshModalUserList(){
+      const users = JSON.parse(localStorage.getItem('users')||'[]'), list = document.getElementById('modalUserList');
+      list.innerHTML = users.length ? users.map(u=>`<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px dashed rgba(255,255,255,0.03)"><div>${escapeHtml(u.username)} <small style="color:var(--muted)">[${escapeHtml(u.role||'kasir')}]</small></div><div>${u.username!=='kasir'?`<button onclick="deleteUser('${encodeURIComponent(u.username)}')" style="padding:6px 8px;border-radius:6px;border:none;background:#cc3a3a;color:#fff;cursor:pointer">Hapus</button>`:'<button disabled style="padding:6px 8px;background:#666;color:#fff;border-radius:6px;border:none">Default</button>'}</div></div>`).join('') : '<div style="color:var(--muted)">Belum ada user.</div>';
+    }
+    function deleteUser(encoded){ const username = decodeURIComponent(encoded); if(username==='kasir'){ alert('Default tidak bisa dihapus'); return; } if(!confirm(`Hapus user "${username}" ?`)) return; let users = JSON.parse(localStorage.getItem('users')||'[]'); users = users.filter(u=>u.username!==username); localStorage.setItem('users', JSON.stringify(users)); refreshModalUserList(); }
+
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeUserModal(); });
+
+    function logout(){ localStorage.removeItem('login'); location.reload(); }
+    function logoutAllSessions(){ if(confirm('Logout semua session?')){ localStorage.removeItem('login'); alert('Logout semua session'); location.reload(); } }
+    function logoutAndDeleteUsers(){ if(!confirm('Hapus semua user kecuali kasir?')) return; const users = JSON.parse(localStorage.getItem('users')||'[]'); localStorage.setItem('users', JSON.stringify(users.filter(u=>u.username==='kasir'))); localStorage.removeItem('login'); alert('Selesai'); location.reload(); }
+
+    /* ---------- menu / cart (render tanpa gambar) ---------- */
+    function tampilMenu(list = menu){
+      const el = document.getElementById('menuList'); el.innerHTML = '';
+      list.forEach(m=>{
+        const card = document.createElement('div'); card.className='card';
+        // Render tanpa gambar, hanya nama, harga, kategori, tombol tambah
+        card.innerHTML = `<h3 style="margin:8px 0 6px 0">${escapeHtml(m.nama)}</h3><p style="color:var(--muted)">${escapeHtml(m.kategori)} — Rp ${m.harga.toLocaleString('id-ID')}</p><button onclick="tambahKeranjang('${escapeJs(m.nama)}',${m.harga})" style="background:var(--accent);border:none;color:#111;padding:8px;border-radius:8px;cursor:pointer;font-weight:700;">Tambah</button>`;
+        el.appendChild(card);
+      });
+    }
+    function searchMenu(){ const q = document.getElementById('searchBox').value.toLowerCase(); tampilMenu(menu.filter(m=>m.nama.toLowerCase().includes(q) || m.kategori.toLowerCase().includes(q))); }
+    function tambahKeranjang(nama, harga){ cart.push({nama,harga}); updateCart(); }
+    function hapusItem(i){ cart.splice(i,1); updateCart(); }
+    function updateCart(){
+      const div = document.getElementById('cart');
+      const total = cart.reduce((s,i)=>s+i.harga,0); document.getElementById('total').innerText = total.toLocaleString('id-ID');
+      div.innerHTML = cart.length ? cart.map((c,i)=>`<p style="color:#fff;margin:6px 0">${escapeHtml(c.nama)} - Rp ${c.harga.toLocaleString('id-ID')} <button onclick="hapusItem(${i})" style="margin-left:8px;padding:4px 8px;border-radius:6px;border:none;background:#c33;color:#fff;cursor:pointer;">X</button></p>`).join('') : `<p style="color:var(--muted)">Keranjang kosong.</p>`;
+      hitungKembalian();
+    }
+
+    function hitungKembalian(){ const total = cart.reduce((s,i)=>s+i.harga,0); const bayar = parseInt(document.getElementById('bayar').value)||0; const kembali = bayar - total; document.getElementById('kembalian').innerText = (kembali>0?kembali:0).toLocaleString('id-ID'); }
+
+    function checkout(){
+      if(!cart.length) return alert('Keranjang kosong!');
+      const total = cart.reduce((s,i)=>s+i.harga,0); const bayar = parseInt(document.getElementById('bayar').value);
+      if(isNaN(bayar) || bayar < total) return alert('Jumlah bayar kurang!');
+      const kembali = bayar - total; const metode = document.getElementById('payment').value; const waktu = new Date().toLocaleString();
+      const user = getLoggedInUser(); const kasirName = user?user.username:'kasir';
+      const struk = `=== STRUK PEMBELIAN ===
+Kasir   : ${kasirName}
+Tanggal : ${waktu}
+Metode  : ${metode.toUpperCase()}
+
+${cart.map(c=>`- ${c.nama} : Rp ${c.harga.toLocaleString('id-ID')}`).join('\n')}
+------------------------
+Total     : Rp ${total.toLocaleString('id-ID')}
+Bayar     : Rp ${bayar.toLocaleString('id-ID')}
+Kembalian : Rp ${kembali.toLocaleString('id-ID')}
+========================
+Terima kasih telah membeli di Kasir 7!
+`;
+      document.getElementById('receiptText').innerText = struk;
+      const receiptEl = document.getElementById('receipt'); receiptEl.style.display='block'; addAnimationClass(receiptEl,'fade-enter'); setTimeout(()=>receiptEl.classList.remove('fade-enter'),ANIM_MS);
+
+      const laporan = JSON.parse(localStorage.getItem('laporan')||'[]'); laporan.push({waktu,total,metode}); localStorage.setItem('laporan', JSON.stringify(laporan));
+      cart = []; updateCart(); renderDashboard(); document.getElementById('bayar').value=''; document.getElementById('kembalian').innerText='0';
+    }
+
+    function printReceipt(){
+      const content = document.getElementById('receiptText').innerText || '';
+      const user = getLoggedInUser(); const kasirName = user?user.username:'kasir';
+      const w = window.open('','_blank','width=420,height=700,scrollbars=yes');
+      const html = `
+        <!doctype html><html><head><meta charset="utf-8"><title>Struk</title><style>body{font-family:Arial;padding:12px;color:#111} pre{white-space:pre-wrap;font-family:monospace} img.logo{width:80px;height:80px;border-radius:10px;display:block;margin:0 auto 10px;}</style></head><body>
+        <img src="logo-w7.jpg.jpg" class="logo" alt="Logo"><h2 style="text-align:center">STRUK PEMBELIAN</h2><hr><pre>${escapeHtml(content)}</pre><hr><p>Kasir: ${escapeHtml(kasirName)}</p><p>Waktu: ${new Date().toLocaleString()}</p></body></html>`;
+      w.document.open(); w.document.write(html); w.document.close(); setTimeout(()=>w.print(),400);
+    }
+
+    function closeReceipt(){ const r=document.getElementById('receipt'); addAnimationClass(r,'fade-leave'); setTimeout(()=>{ r.style.display='none'; r.classList.remove('fade-leave'); },ANIM_MS); }
+
+    /* ---------- Dashboard (Chart.js) ---------- */
+    function aggregate(laporan, type){
+      const map={};
+      laporan.forEach(l=>{
+        const d=new Date(l.waktu);
+        let key;
+        if(type==='harian') key = d.toLocaleDateString('id-ID');
+        else if(type==='bulanan') key = `${d.getMonth()+1}-${d.getFullYear()}`;
+        else key = `${d.getFullYear()}`;
+        map[key] = (map[key]||0) + (Number(l.total)||0);
+      });
+      const keys = Object.keys(map).sort((a,b)=>{
+        const pa = Date.parse(a) || Date.parse(a.replace(/(\d+)-(\d+)/,'1/1/$2')) || new Date(a).getTime();
+        const pb = Date.parse(b) || Date.parse(b.replace(/(\d+)-(\d+)/,'1/1/$2')) || new Date(b).getTime();
+        return pa - pb;
+      });
+      return { labels: keys, values: keys.map(k=>map[k]) };
+    }
+
+    function renderDashboard(){
+      const laporan = JSON.parse(localStorage.getItem('laporan')||'[]');
+      const type = document.getElementById('filterType').value;
+      const data = aggregate(laporan,type);
+      const ctx = document.getElementById('chartKasir').getContext('2d');
+      if(chart) chart.destroy();
+      chart = new Chart(ctx, { type: type==='tahunan' ? 'pie' : 'bar', data: { labels: data.labels, datasets: [{ label:`Penjualan (${type})`, data: data.values, backgroundColor:'#ffb703' }] }, options:{ responsive:true }});
+      const laporanDiv = document.getElementById('laporanDashboard'); laporanDiv.innerHTML = laporan.length ? laporan.map(l=>`<p style="margin:6px 0;color:var(--muted)">${escapeHtml(l.waktu)} - Rp ${Number(l.total).toLocaleString('id-ID')} (${escapeHtml((l.metode||'').toUpperCase())})</p>`).join('') : '<p style="color:var(--muted)">Belum ada transaksi.</p>';
+      cekRoleDashboard(); updateProfileUI();
+    }
+
+    function resetDashboard(){ localStorage.removeItem('laporan'); renderDashboard(); alert('Data dashboard direset!'); }
+
+    /* ---------- role, profile, password ---------- */
+    function cekRoleDashboard(){ const u = getLoggedInUser(); const el=document.getElementById('adminButtons'); if(!el) return; if(!u || u.role!=='admin') el.style.display='none'; else el.style.display='block'; }
+    function updateProfileUI(){ const u = getLoggedInUser(); const span=document.getElementById('userProfileName'); if(u){ span.textContent=u.username; document.getElementById('popupUsername').textContent=u.username; document.getElementById('popupRole').textContent=(u.role||'kasir').toUpperCase(); } else { span.textContent='User'; } }
+
+    function ubahPassword(){ const oldPass=document.getElementById('oldPass')?.value; const newPass=document.getElementById('newPass')?.value; const users=JSON.parse(localStorage.getItem('users')||'[]'); const loginUser=getLoggedInUser(); if(!loginUser) return alert('Tidak ada user login'); const idx=users.findIndex(x=>x.username===loginUser.username); if(idx===-1) return alert('User tidak ditemukan'); if(users[idx].password!==oldPass) return alert('Password lama salah'); if(newPass.length<4) return alert('Password minimal 4'); users[idx].password=newPass; localStorage.setItem('users',JSON.stringify(users)); loginUser.password=newPass; localStorage.setItem('login',JSON.stringify(loginUser)); alert('Password berhasil diubah'); }
+    function ubahPasswordDariPopup(){ const oldPass=document.getElementById('popupOldPass').value; const newPass=document.getElementById('popupNewPass').value; const users=JSON.parse(localStorage.getItem('users')||'[]'); const loginUser=getLoggedInUser(); if(!loginUser) return alert('Tidak ada user login'); const idx=users.findIndex(x=>x.username===loginUser.username); if(idx===-1) return alert('User tidak ditemukan'); if(users[idx].password!==oldPass) return alert('Password lama salah'); if(newPass.length<4) return alert('Password minimal 4'); users[idx].password=newPass; localStorage.setItem('users',JSON.stringify(users)); loginUser.password=newPass; localStorage.setItem('login',JSON.stringify(loginUser)); alert('Password berhasil diubah'); document.getElementById('popupOldPass').value=''; document.getElementById('popupNewPass').value=''; document.getElementById('userProfilePopup').style.display='none'; }
+
+    function toggleUserProfile(){ const p=document.getElementById('userProfilePopup'); if(p.style.display==='block'){ p.classList.add('fade-leave'); setTimeout(()=>{ p.style.display='none'; p.classList.remove('fade-leave');},ANIM_MS); } else { p.style.display='block'; addAnimationClass(p,'fade-enter'); setTimeout(()=>p.classList.remove('fade-enter'),ANIM_MS); } updateProfileUI(); }
+
+    /* ---------- show/hide sections ---------- */
+    function showKasir(){ const k=document.getElementById('kasirSection'); const d=document.getElementById('dashboardSection'); transitionShow(d,k); }
+    function showDashboard(){ const k=document.getElementById('kasirSection'); const d=document.getElementById('dashboardSection'); transitionShow(k,d); renderDashboard(); }
+
+    /* ---------- init / autologin ---------- */
+    (function init(){
+      const user = getLoggedInUser(); const loginPage=document.getElementById('loginPage'); const app=document.getElementById('appWrap');
+      if(user){ transitionShow(loginPage, app); app.classList.remove('hidden'); document.getElementById('dashboardSection').classList.add('hidden'); document.getElementById('kasirSection').classList.remove('hidden'); tampilMenu(); renderDashboard(); updateProfileUI(); } else { addAnimationClass(loginPage,'fade-enter'); setTimeout(()=>loginPage.classList.remove('fade-enter'),ANIM_MS); }
+      refreshModalUserList();
+    })();
+
+    /* ---------- helpers ---------- */
+    function escapeHtml(t){ if(!t && t!==0) return ''; return String(t).replace(/[&<>"'`=\/]/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;",'/':'&#x2F;','`':'&#x60;','=':'&#x3D;'}[s])); }
+    function escapeJs(t){ if(!t && t!==0) return ''; return String(t).replace(/'/g,"\\'"); }
+  </script>
+</body>
+</html>
